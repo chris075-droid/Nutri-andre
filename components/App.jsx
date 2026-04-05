@@ -209,12 +209,7 @@ export default function App() {
     setSnackLoad(true);
     try {
       setSnackStatus("\u{1F50D} Buscando snack...");
-      const modelTag = useSonnet ? "sonnet" : "haiku";
-      const cacheKey = `na-snack-recipe-${new Date().toLocaleDateString("es-ES").replace(/\//g, "-")}-${modelTag}`;
-      const cached = DB.get(cacheKey);
-      if (cached) { setSnackRecipe(cached); setShowSnackModal(true); setSnackLoad(false); setSnackStatus(""); return; }
       const { recipe: built } = await buildRecipe(snack, ageLabel, useSonnet);
-      DB.set(cacheKey, built);
       setSnackRecipe(built);
       setShowSnackModal(true);
     } catch {
