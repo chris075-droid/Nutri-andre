@@ -1190,7 +1190,13 @@ export default function App() {
                   navigator.share({ title:"Respaldo NutriAndr\u00e9", files:[file] }).catch(()=>{});
                 } else {
                   // Fallback: descarga directa
-                  Object.assign(document.createElement("a"), { href:URL.createObjectURL(blob), download:file.name }).click();
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = file.name;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(a.href);
                 }
               }}
                 style={{ width: "100%", padding: 12, borderRadius: 12, border: "none", background: grad, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif", marginBottom: 8 }}>
