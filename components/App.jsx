@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import DB from "@/lib/storage";
-import { C, grad, STAGE_DESC, APPETITE, CATS, lSt, iSt, getDailySuggestion, getDailySnack, getDailyTip, getNutriRec, getAgeSemester, MEAL_SLOTS, MEAL_EMOJIS } from "@/lib/constants";
+import { C, grad, STAGE_DESC, APPETITE, CATS, lSt, iSt, getDailySuggestion, getDailySnack, getDailyDessert, getDailyTip, getNutriRec, getAgeSemester, MEAL_SLOTS, MEAL_EMOJIS } from "@/lib/constants";
 import { calcAge } from "@/lib/age-helpers";
 import { WHO, calcPercentile, percentileInfo } from "@/lib/percentiles";
 import { callModel, CHAT_SYSTEM, trimChat, buildRecipe } from "@/lib/api-ai";
@@ -68,8 +68,15 @@ export default function App() {
   const [customNutriRec, setCustomNutriRec] = useState(null);
   const [customSuggestion, setCustomSuggestion] = useState(null);
   const [customSnack, setCustomSnack] = useState(null);
+  const [customDessert, setCustomDessert] = useState(null);
   const [customTip, setCustomTip] = useState(null);
-  const [loadingSection, setLoadingSection] = useState(null); // "nutri"|"suggestion"|"snack"|"tip"
+  const [loadingSection, setLoadingSection] = useState(null);
+
+  // Dessert recipe
+  const [dessertRecipe, setDessertRecipe] = useState(null);
+  const [dessertLoad, setDessertLoad] = useState(false);
+  const [dessertStatus, setDessertStatus] = useState("");
+  const [showDessertModal, setShowDessertModal] = useState(false);
 
   // Health
   const [healthRecs, setHealthRecs] = useState([]);
@@ -90,6 +97,7 @@ export default function App() {
     const cn = DB.get("na-custom-nutri"); if (cn) setCustomNutriRec(cn);
     const cs = DB.get("na-custom-suggestion"); if (cs) setCustomSuggestion(cs);
     const ck = DB.get("na-custom-snack"); if (ck) setCustomSnack(ck);
+    const cd = DB.get("na-custom-dessert"); if (cd) setCustomDessert(cd);
     const ct = DB.get("na-custom-tip"); if (ct) setCustomTip(ct);
   }, []);
 
@@ -98,6 +106,7 @@ export default function App() {
   const stage = age?.stage || "toddler";
   const suggestion = getDailySuggestion(stage);
   const snack = getDailySnack(stage);
+  const dessert = getDailyDessert(stage);
   const dailyTip = getDailyTip();
   const nutriRec = getNutriRec(age?.months);
   const currentSemester = getAgeSemester(age?.months);
@@ -236,6 +245,30 @@ export default function App() {
     setSnackLoad(false); setSnackStatus("");
   };
 
+  const fetchDessertRecipe = async () => {
+    if (dessertLoad) return;
+    if (dessertRecipe) { setShowDessertModal(true); return; }
+    const ds = customDessert || dessert;
+    const existing = (DB.get("na-plan-recipes") || {})[ds.dish.toLowerCase().trim()];
+    let force = false;
+    if (existing && useSonnet) {
+      if (!confirm("Esta receta ya est\u00e1 en cach\u00e9. \u00bfDeseas reemplazarla con una versi\u00f3n Sonnet?\n\nPresiona Cancelar para usar la versi\u00f3n guardada.")) {
+        setDessertRecipe(existing); setShowDessertModal(true); return;
+      }
+      force = true;
+    }
+    setDessertLoad(true);
+    try {
+      setDessertStatus("\u{1F50D} Buscando postre...");
+      const { recipe: built } = await buildRecipe(ds, ageLabel, useSonnet, force);
+      setDessertRecipe(built);
+      setShowDessertModal(true);
+    } catch {
+      alert("No se pudo cargar la receta del postre. Verifica tu conexi\u00f3n.");
+    }
+    setDessertLoad(false); setDessertStatus("");
+  };
+
   // ── Actualizar secciones del inicio con IA ──
   const refreshSection = async (section) => {
     setLoadingSection(section);
@@ -244,6 +277,7 @@ export default function App() {
         nutri: `Genera recomendaciones nutricionales detalladas para un niño de ${ageLabel} (etapa: ${STAGE_DESC[stage]}). Basado en AAP, OMS y DGA 2020-2025. SOLO JSON: {"label":"...","kcal":"...","source":"...","macros":[{"name":"...","val":"...","emoji":"..."}],"liquids":[{"name":"...","val":"...","emoji":"..."}],"avoid":["..."]}`,
         suggestion: `Sugiere UN platillo principal nutritivo para un niño de ${ageLabel} (etapa: ${STAGE_DESC[stage]}). Diferente a "${suggestion.dish}". SOLO JSON: {"dish":"...","emoji":"...","tag":"..."}`,
         snack: `Sugiere UN snack saludable para un niño de ${ageLabel} (etapa: ${STAGE_DESC[stage]}). Diferente a "${snack.dish}". SOLO JSON: {"dish":"...","emoji":"...","tag":"..."}`,
+        dessert: `Sugiere UN postre saludable para un niño de ${ageLabel} (etapa: ${STAGE_DESC[stage]}). Diferente a "${dessert.dish}". Debe ser nutritivo y bajo en azúcar. SOLO JSON: {"dish":"...","emoji":"...","tag":"..."}`,
         tip: `Da UN consejo experto de nutrición infantil para mejorar el apego a la alimentación de un niño de ${ageLabel}. Basado en evidencia (AAP, OMS, Ellyn Satter, BLW). SOLO JSON: {"tip":"...","source":"...","emoji":"..."}`,
       };
       const raw = await callModel({
@@ -268,6 +302,7 @@ export default function App() {
         if (section === "nutri") { setCustomNutriRec(parsed); DB.set("na-custom-nutri", parsed); }
         else if (section === "suggestion") { setCustomSuggestion(parsed); DB.set("na-custom-suggestion", parsed); }
         else if (section === "snack") { setCustomSnack(parsed); DB.set("na-custom-snack", parsed); }
+        else if (section === "dessert") { setCustomDessert(parsed); DB.set("na-custom-dessert", parsed); }
         else if (section === "tip") { setCustomTip(parsed); DB.set("na-custom-tip", parsed); }
       }
     } catch (e) { console.error(`Error refreshing ${section}:`, e); }
@@ -504,6 +539,36 @@ export default function App() {
               <button onClick={() => refreshSection("snack")} disabled={loadingSection==="snack"}
                 style={{ marginTop: 6, width: "100%", padding: "8px", borderRadius: 10, border: `1.5px solid ${C.green}33`, background: "rgba(255,255,255,0.7)", color: "#1B5E20", fontSize: 11, fontWeight: 700, cursor: loadingSection==="snack"?"wait":"pointer", fontFamily: "'Nunito',sans-serif" }}>
                 {loadingSection==="snack" ? "\u23F3 Actualizando..." : `\u{1F504} Actualizar con ${useSonnet?"\u2728 Sonnet":"\u26A1 Haiku"}`}
+              </button>
+            </div>
+            ); })()}
+
+            {/* Postre saludable del día */}
+            {(() => { const ds = customDessert || dessert; return (
+            <div style={{ background: `linear-gradient(135deg,#FFF3E0,#FFE0B2)`, borderRadius: 20, padding: 16, boxShadow: "0 4px 18px rgba(255,179,0,0.15)", border: "1px solid rgba(255,179,0,0.2)", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", right: -8, top: -8, fontSize: 70, opacity: 0.1 }}>{ds.emoji}</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ background: C.orange, color: "#fff", fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>{"\u{1F370}"} Postre saludable del día</span>
+                <span style={{ background: "rgba(255,255,255,0.85)", color: C.dark, fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 600 }}>{ds.tag}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
+                <span style={{ fontSize: 44 }}>{ds.emoji}</span>
+                <div>
+                  <p style={{ margin: 0, fontWeight: "bold", fontSize: 15, color: "#E65100", lineHeight: 1.3 }}>{ds.dish}</p>
+                  {age && <p style={{ margin: "3px 0 0", fontSize: 11, color: C.mid }}>Postre para {age.label} · {STAGE_DESC[stage]} {"\u{1F370}"}</p>}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                <SourceBadge label={"\u{1F5C4} TheMealDB"} color={C.dark} />
+                <SourceBadge label={"\u{1F957} Open Food Facts"} color={C.green} />
+                <SourceBadge label={"\u26A1 Haiku"} color={C.purple} />
+              </div>
+              <button onClick={fetchDessertRecipe} disabled={dessertLoad} style={{ marginTop: 12, width: "100%", padding: 12, borderRadius: 14, border: "none", background: dessertLoad ? "#FFCC80" : `linear-gradient(135deg,${C.orange},#E65100)`, color: dessertLoad ? C.mid : "#fff", fontWeight: "bold", fontSize: 14, cursor: dessertLoad ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 12px rgba(255,179,0,0.3)", transition: "all .2s" }}>
+                {dessertLoad ? <><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>{"\u27F3"}</span> {dessertStatus || "Cargando..."}</> : dessertRecipe ? "Ver receta del postre \u{1F4D6}" : "Ver ingredientes y receta \u{1F468}\u200D\u{1F373}"}
+              </button>
+              <button onClick={() => refreshSection("dessert")} disabled={loadingSection==="dessert"}
+                style={{ marginTop: 6, width: "100%", padding: "8px", borderRadius: 10, border: "1.5px solid rgba(255,179,0,0.3)", background: "rgba(255,255,255,0.7)", color: "#E65100", fontSize: 11, fontWeight: 700, cursor: loadingSection==="dessert"?"wait":"pointer", fontFamily: "'Nunito',sans-serif" }}>
+                {loadingSection==="dessert" ? "\u23F3 Actualizando..." : `\u{1F504} Actualizar con ${useSonnet?"\u2728 Sonnet":"\u26A1 Haiku"}`}
               </button>
             </div>
             ); })()}
@@ -1151,6 +1216,7 @@ export default function App() {
 
       {showModal && <RecipeModal recipe={recipe} onClose={() => setShowModal(false)} />}
       {showSnackModal && <RecipeModal recipe={snackRecipe} onClose={() => setShowSnackModal(false)} />}
+      {showDessertModal && <RecipeModal recipe={dessertRecipe} onClose={() => setShowDessertModal(false)} />}
     </div>
   );
 }
