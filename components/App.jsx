@@ -87,6 +87,10 @@ export default function App() {
     const s = DB.get("na-savings"); if (s) setSavings(s);
     const u = DB.get("na-sonnet"); if (u !== null) setUseSonnet(u);
     const h = DB.get("na-health"); if (h) setHealthRecs(h);
+    const cn = DB.get("na-custom-nutri"); if (cn) setCustomNutriRec(cn);
+    const cs = DB.get("na-custom-suggestion"); if (cs) setCustomSuggestion(cs);
+    const ck = DB.get("na-custom-snack"); if (ck) setCustomSnack(ck);
+    const ct = DB.get("na-custom-tip"); if (ct) setCustomTip(ct);
   }, []);
 
   const age = calcAge(profile.birthDate);
@@ -248,10 +252,10 @@ export default function App() {
           for (let x=0;x<braces;x++) json+="}";
           parsed = JSON.parse(json);
         }
-        if (section === "nutri") setCustomNutriRec(parsed);
-        else if (section === "suggestion") setCustomSuggestion(parsed);
-        else if (section === "snack") setCustomSnack(parsed);
-        else if (section === "tip") setCustomTip(parsed);
+        if (section === "nutri") { setCustomNutriRec(parsed); DB.set("na-custom-nutri", parsed); }
+        else if (section === "suggestion") { setCustomSuggestion(parsed); DB.set("na-custom-suggestion", parsed); }
+        else if (section === "snack") { setCustomSnack(parsed); DB.set("na-custom-snack", parsed); }
+        else if (section === "tip") { setCustomTip(parsed); DB.set("na-custom-tip", parsed); }
       }
     } catch (e) { console.error(`Error refreshing ${section}:`, e); }
     setLoadingSection(null);
