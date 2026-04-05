@@ -1261,7 +1261,7 @@ export default function App() {
       </div>
 
       {/* Bottom nav */}
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: C.card, borderTop: `1px solid ${C.light}`, display: "flex", boxShadow: "0 -4px 16px rgba(0,0,0,0.07)" }}>
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: C.card, borderTop: `1px solid ${C.light}`, display: "flex", padding: "0 8px", boxShadow: "0 -4px 16px rgba(0,0,0,0.07)" }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "9px 0 7px", border: "none", background: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
             <span style={{ fontSize: 17 }}>{t.icon}</span>
@@ -1273,7 +1273,7 @@ export default function App() {
 
       {/* Botón flotante reload */}
       <button onClick={() => window.location.reload()}
-        style={{ position: "fixed", bottom: 80, left: 12, width: 36, height: 36, borderRadius: "50%",
+        style={{ position: "fixed", bottom: 90, left: 12, width: 36, height: 36, borderRadius: "50%",
           background: C.card, border: `1px solid ${C.accent}`, color: C.primary, fontSize: 16,
           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           boxShadow: "0 2px 10px rgba(0,0,0,0.12)", zIndex: 100 }}>

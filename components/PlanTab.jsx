@@ -40,7 +40,10 @@ function fmtDate(d) {
 
 function getWeekKey() {
   const d = new Date();
-  return `na-plan-week-${d.toISOString().split("T")[0]}`;
+  const dayOfWeek = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((dayOfWeek + 6) % 7));
+  return `na-plan-week-${monday.toISOString().split("T")[0]}`;
 }
 function getDayKey() {
   return `na-plan-day-${new Date().toISOString().split("T")[0]}`;
@@ -148,8 +151,13 @@ export default function PlanTab({ profile, age, useSonnet }) {
   // Generar 7 días desde hoy
   const buildDays = () => {
     const days = [];
+    const today = new Date();
+    // Calcular el lunes de esta semana (o el lunes siguiente si es domingo)
+    const dayOfWeek = today.getDay(); // 0=dom, 1=lun, ..., 6=sáb
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7)); // retrocede al lunes
     for (let i = 0; i < 7; i++) {
-      const d = new Date(); d.setDate(d.getDate() + i);
+      const d = new Date(monday); d.setDate(monday.getDate() + i);
       days.push({ date: d.toISOString().split("T")[0], dayName: DAY_NAMES[d.getDay()] });
     }
     return days;
