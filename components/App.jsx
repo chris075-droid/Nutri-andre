@@ -183,11 +183,20 @@ export default function App() {
   const fetchRecipe = async () => {
     if (recLoad) return;
     if (recipe) { setShowModal(true); return; }
+    // Verificar si ya existe en caché y el usuario quiere reemplazar con otro modelo
+    const sg = customSuggestion || suggestion;
+    const existing = (DB.get("na-plan-recipes") || {})[sg.dish.toLowerCase().trim()];
+    let force = false;
+    if (existing && useSonnet) {
+      if (!confirm("Esta receta ya está en caché. ¿Deseas reemplazarla con una versión Sonnet?\n\nPresiona Cancelar para usar la versión guardada.")) {
+        setRecipe(existing); setShowModal(true); return;
+      }
+      force = true;
+    }
     setRecLoad(true);
     try {
-      setRecStatus("\u{1F50D} Buscando en TheMealDB...");
-      await new Promise(r => setTimeout(r, 300));
-      const { recipe: built, fromCache } = await buildRecipe(suggestion, ageLabel, useSonnet);
+      setRecStatus("\u{1F50D} Buscando receta...");
+      const { recipe: built, fromCache } = await buildRecipe(sg, ageLabel, useSonnet, force);
       const newSav = {
         recipeCached: savings.recipeCached + (fromCache ? 1 : 0),
         mealDBHits: savings.mealDBHits + (built._sources?.recipe?.includes("TheMealDB") ? 1 : 0),
@@ -206,10 +215,19 @@ export default function App() {
   const fetchSnackRecipe = async () => {
     if (snackLoad) return;
     if (snackRecipe) { setShowSnackModal(true); return; }
+    const sk = customSnack || snack;
+    const existing = (DB.get("na-plan-recipes") || {})[sk.dish.toLowerCase().trim()];
+    let force = false;
+    if (existing && useSonnet) {
+      if (!confirm("Esta receta ya está en caché. ¿Deseas reemplazarla con una versión Sonnet?\n\nPresiona Cancelar para usar la versión guardada.")) {
+        setSnackRecipe(existing); setShowSnackModal(true); return;
+      }
+      force = true;
+    }
     setSnackLoad(true);
     try {
       setSnackStatus("\u{1F50D} Buscando snack...");
-      const { recipe: built } = await buildRecipe(snack, ageLabel, useSonnet);
+      const { recipe: built } = await buildRecipe(sk, ageLabel, useSonnet, force);
       setSnackRecipe(built);
       setShowSnackModal(true);
     } catch {
