@@ -1175,18 +1175,28 @@ export default function App() {
               <p style={{ margin: "0 0 12px", fontSize: 11, color: C.mid, lineHeight: 1.5 }}>
                 Exporta un archivo JSON con todos tus datos (perfil, comidas, recetas, planes, salud). Guárdalo en un lugar seguro para restaurar en otro dispositivo.
               </p>
+              {/* Exportar */}
               <button onClick={() => {
                 const BACKUP_KEYS = ["na-profile","na-meals","na-health","na-savings","na-sonnet","na-plan-recipes","na-plan-recipes-meta","na-age-semester","na-confirm-week","na-confirm-day","na-shopping-week","na-shopping-day","na-custom-nutri","na-custom-suggestion","na-custom-snack","na-custom-dessert","na-custom-tip"];
                 const keys = [...BACKUP_KEYS];
                 try { for (let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k?.startsWith("na-plan-week-")||k?.startsWith("na-plan-day-")||k?.startsWith("na-confirming-")) keys.push(k); } } catch {}
                 const data = { _app:"NutriAndr\u00e9", _version:"1.0", _fecha:new Date().toISOString() };
                 [...new Set(keys)].forEach(k => { try { const v=localStorage.getItem(k); if(v) data[k]=JSON.parse(v); } catch {} });
-                const blob = new Blob([JSON.stringify(data,null,2)], { type:"application/json" });
-                Object.assign(document.createElement("a"), { href:URL.createObjectURL(blob), download:`nutriandre-backup-${new Date().toISOString().split("T")[0]}.json` }).click();
+                const json = JSON.stringify(data,null,2);
+                const blob = new Blob([json], { type:"application/json" });
+                const file = new File([blob], `nutriandre-backup-${new Date().toISOString().split("T")[0]}.json`, { type:"application/json" });
+                // Intentar Web Share API (nativo en móvil)
+                if (navigator.share && navigator.canShare?.({ files:[file] })) {
+                  navigator.share({ title:"Respaldo NutriAndr\u00e9", files:[file] }).catch(()=>{});
+                } else {
+                  // Fallback: descarga directa
+                  Object.assign(document.createElement("a"), { href:URL.createObjectURL(blob), download:file.name }).click();
+                }
               }}
                 style={{ width: "100%", padding: 12, borderRadius: 12, border: "none", background: grad, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif", marginBottom: 8 }}>
-                {"\u2B07"} Exportar respaldo completo
+                {"\u2B07"} Exportar respaldo
               </button>
+              {/* Importar: selector de archivo */}
               <input ref={backupFileRef} type="file" accept=".json" style={{ display: "none" }}
                 onChange={async e => {
                   const file = e.target.files[0]; if (!file) return;
@@ -1200,8 +1210,13 @@ export default function App() {
                   } catch { setBackupMsg({ ok:false, msg:"Error al leer el archivo" }); }
                 }} />
               <button onClick={() => { if (confirm("\u00bfRestaurar datos desde un respaldo?\n\nEsto REEMPLAZAR\u00c1 todos los datos actuales.")) backupFileRef.current?.click(); }}
+                style={{ width: "100%", padding: 12, borderRadius: 12, border: `1.5px solid ${C.primary}44`, background: C.light, color: C.primary, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif", marginBottom: 8 }}>
+                {"\u{1F4C2}"} Importar desde archivo
+              </button>
+              {/* Abrir Google Drive para buscar respaldo */}
+              <button onClick={() => window.open("https://drive.google.com/drive/search?q=nutriandre-backup", "_blank")}
                 style={{ width: "100%", padding: 12, borderRadius: 12, border: `1.5px solid ${C.orange}44`, background: `${C.orange}08`, color: C.orange, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>
-                {"\u2B06"} Importar respaldo
+                {"\u{1F4E5}"} Buscar respaldo en Google Drive
               </button>
               {backupMsg && (
                 <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 8, background: backupMsg.ok ? `${C.green}15` : `${C.red}15`, border: `1px solid ${backupMsg.ok ? C.green : C.red}44`, fontSize: 12, color: backupMsg.ok ? C.green : C.red, fontWeight: 600 }}>
