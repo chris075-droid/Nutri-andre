@@ -45,6 +45,10 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [gustoFilter, setGustoFilter] = useState("todos");
   const [gustoExpanded, setGustoExpanded] = useState(null);
+  // Backup
+  const backupFileRef = useRef(null);
+  const [backupMsg, setBackupMsg] = useState(null);
+
   const [reactivatedWeek, setReactivatedWeek] = useState(() => {
     try { const t = localStorage.getItem("na-confirm-week"); if (!t || t === "null") return true; return (Date.now() - new Date(JSON.parse(t)).getTime()) >= 7*24*60*60*1000; } catch { return true; }
   });
@@ -1166,75 +1170,45 @@ export default function App() {
             </div>
 
             {/* Respaldo de datos */}
-            {(() => {
-              const fileRef = useRef(null);
-              const [backupMsg, setBackupMsg] = useState(null);
-              const BACKUP_KEYS = [
-                "na-profile","na-meals","na-health","na-savings","na-sonnet",
-                "na-plan-recipes","na-plan-recipes-meta","na-age-semester",
-                "na-confirm-week","na-confirm-day",
-                "na-shopping-week","na-shopping-day",
-                "na-custom-nutri","na-custom-suggestion","na-custom-snack","na-custom-dessert","na-custom-tip",
-              ];
-              // También incluir planes dinámicos na-plan-week-* y na-plan-day-*
-              const getAllKeys = () => {
+            <div style={{ background: C.card, borderRadius: 18, padding: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+              <h3 style={{ margin: "0 0 8px", color: C.deep, fontSize: 14 }}>{"\u{1F4BE}"} Respaldo de datos</h3>
+              <p style={{ margin: "0 0 12px", fontSize: 11, color: C.mid, lineHeight: 1.5 }}>
+                Exporta un archivo JSON con todos tus datos (perfil, comidas, recetas, planes, salud). Guárdalo en un lugar seguro para restaurar en otro dispositivo.
+              </p>
+              <button onClick={() => {
+                const BACKUP_KEYS = ["na-profile","na-meals","na-health","na-savings","na-sonnet","na-plan-recipes","na-plan-recipes-meta","na-age-semester","na-confirm-week","na-confirm-day","na-shopping-week","na-shopping-day","na-custom-nutri","na-custom-suggestion","na-custom-snack","na-custom-dessert","na-custom-tip"];
                 const keys = [...BACKUP_KEYS];
-                try {
-                  for (let i = 0; i < localStorage.length; i++) {
-                    const k = localStorage.key(i);
-                    if (k?.startsWith("na-plan-week-") || k?.startsWith("na-plan-day-") || k?.startsWith("na-confirming-")) keys.push(k);
-                  }
-                } catch {}
-                return [...new Set(keys)];
-              };
-              const exportar = () => {
-                const data = { _app: "NutriAndré", _version: "1.0", _fecha: new Date().toISOString() };
-                getAllKeys().forEach(k => { try { const v = localStorage.getItem(k); if (v) data[k] = JSON.parse(v); } catch {} });
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-                const a = Object.assign(document.createElement("a"), {
-                  href: URL.createObjectURL(blob),
-                  download: `nutriandre-backup-${new Date().toISOString().split("T")[0]}.json`
-                });
-                a.click();
-              };
-              const importar = async (file) => {
-                try {
-                  const txt = await file.text();
-                  const data = JSON.parse(txt);
-                  if (!data._app) { setBackupMsg({ ok: false, msg: "Archivo no válido" }); return; }
-                  let count = 0;
-                  Object.entries(data).forEach(([k, v]) => {
-                    if (k.startsWith("_")) return;
-                    try { localStorage.setItem(k, JSON.stringify(v)); count++; } catch {}
-                  });
-                  setBackupMsg({ ok: true, msg: `\u2705 ${count} datos restaurados. Recargando\u2026` });
-                  setTimeout(() => window.location.reload(), 1500);
-                } catch { setBackupMsg({ ok: false, msg: "Error al leer el archivo" }); }
-              };
-              return (
-                <div style={{ background: C.card, borderRadius: 18, padding: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                  <h3 style={{ margin: "0 0 8px", color: C.deep, fontSize: 14 }}>{"\u{1F4BE}"} Respaldo de datos</h3>
-                  <p style={{ margin: "0 0 12px", fontSize: 11, color: C.mid, lineHeight: 1.5 }}>
-                    Exporta un archivo JSON con todos tus datos (perfil, comidas, recetas, planes, salud). Guárdalo en un lugar seguro para restaurar en otro dispositivo.
-                  </p>
-                  <button onClick={exportar}
-                    style={{ width: "100%", padding: 12, borderRadius: 12, border: "none", background: grad, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif", marginBottom: 8 }}>
-                    {"\u2B07"} Exportar respaldo completo
-                  </button>
-                  <input ref={fileRef} type="file" accept=".json" style={{ display: "none" }}
-                    onChange={e => e.target.files[0] && importar(e.target.files[0])} />
-                  <button onClick={() => { if (confirm("\u00bfRestaurar datos desde un respaldo?\n\nEsto REEMPLAZAR\u00c1 todos los datos actuales.")) fileRef.current?.click(); }}
-                    style={{ width: "100%", padding: 12, borderRadius: 12, border: `1.5px solid ${C.orange}44`, background: `${C.orange}08`, color: C.orange, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>
-                    {"\u2B06"} Importar respaldo
-                  </button>
-                  {backupMsg && (
-                    <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 8, background: backupMsg.ok ? `${C.green}15` : `${C.red}15`, border: `1px solid ${backupMsg.ok ? C.green : C.red}44`, fontSize: 12, color: backupMsg.ok ? C.green : C.red, fontWeight: 600 }}>
-                      {backupMsg.msg}
-                    </div>
-                  )}
+                try { for (let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k?.startsWith("na-plan-week-")||k?.startsWith("na-plan-day-")||k?.startsWith("na-confirming-")) keys.push(k); } } catch {}
+                const data = { _app:"NutriAndr\u00e9", _version:"1.0", _fecha:new Date().toISOString() };
+                [...new Set(keys)].forEach(k => { try { const v=localStorage.getItem(k); if(v) data[k]=JSON.parse(v); } catch {} });
+                const blob = new Blob([JSON.stringify(data,null,2)], { type:"application/json" });
+                Object.assign(document.createElement("a"), { href:URL.createObjectURL(blob), download:`nutriandre-backup-${new Date().toISOString().split("T")[0]}.json` }).click();
+              }}
+                style={{ width: "100%", padding: 12, borderRadius: 12, border: "none", background: grad, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif", marginBottom: 8 }}>
+                {"\u2B07"} Exportar respaldo completo
+              </button>
+              <input ref={backupFileRef} type="file" accept=".json" style={{ display: "none" }}
+                onChange={async e => {
+                  const file = e.target.files[0]; if (!file) return;
+                  try {
+                    const data = JSON.parse(await file.text());
+                    if (!data._app) { setBackupMsg({ ok:false, msg:"Archivo no v\u00e1lido" }); return; }
+                    let count = 0;
+                    Object.entries(data).forEach(([k,v]) => { if(k.startsWith("_")) return; try { localStorage.setItem(k,JSON.stringify(v)); count++; } catch {} });
+                    setBackupMsg({ ok:true, msg:`\u2705 ${count} datos restaurados. Recargando\u2026` });
+                    setTimeout(() => window.location.reload(), 1500);
+                  } catch { setBackupMsg({ ok:false, msg:"Error al leer el archivo" }); }
+                }} />
+              <button onClick={() => { if (confirm("\u00bfRestaurar datos desde un respaldo?\n\nEsto REEMPLAZAR\u00c1 todos los datos actuales.")) backupFileRef.current?.click(); }}
+                style={{ width: "100%", padding: 12, borderRadius: 12, border: `1.5px solid ${C.orange}44`, background: `${C.orange}08`, color: C.orange, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>
+                {"\u2B06"} Importar respaldo
+              </button>
+              {backupMsg && (
+                <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 8, background: backupMsg.ok ? `${C.green}15` : `${C.red}15`, border: `1px solid ${backupMsg.ok ? C.green : C.red}44`, fontSize: 12, color: backupMsg.ok ? C.green : C.red, fontWeight: 600 }}>
+                  {backupMsg.msg}
                 </div>
-              );
-            })()}
+              )}
+            </div>
 
             {/* Reactivar planes */}
             <div style={{ background: C.card, borderRadius: 18, padding: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
